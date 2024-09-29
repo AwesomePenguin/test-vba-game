@@ -165,3 +165,11 @@ Sub LogMessage(message As String)
     ' Write the updated log back to the cell
     logRange.Value = logText
 End Sub
+
+Public Sub ClearLog()
+    ' Reference the cell where the log is stored
+    Set logRange = ThisWorkbook.Sheets("GAME").Range("N1")
+    
+    ' Clear the log message
+    logRange.Value = ""
+End Sub
