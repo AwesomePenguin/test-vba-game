@@ -2,6 +2,10 @@
 Public VBAEnabled As Boolean
 
 Public previousCell As Range
+Public previousCellValue As String
+Public facingDirection As String
+
+Public charText As String
 Public charColor As Long
 Public wallText As String
 Public wallColor As Long
@@ -13,10 +17,12 @@ Public enemyText As String
 Public enemyColor As Long
 Public specialTexts() As Variant
 
-Public myCharacter As Character
-
 ' Initialize global variables
 Sub InitializeGlobals()
+    previousCellValue = ""
+    facingDirection = "down"
+
+    charText = "@" ' Text representing the character
     charColor = RGB(128, 0, 128) ' Purple color
     wallText = "##" ' Text to prevent selection
     wallColor = RGB(169, 169, 169) ' Dark grey color
@@ -45,11 +51,11 @@ End Function
 
 Public Function PreventSpecificTextSelection(ByVal Target As Range) As Boolean
     ' Check if the selected cell contains any special text
-    If Target.Value = wallText Or _
-       Target.Value = chestText Or _
-       Target.Value = enemyText Then
+    If Target.value = wallText Or _
+       Target.value = chestText Or _
+       Target.value = enemyText Then
         PreventSpecificTextSelection = True
-    ElseIf Target.Value = goldText Then
+    ElseIf Target.value = goldText Then
         ' Add gold to the character's inventory
         myCharacter.Gold = myCharacter.Gold + 1
         ' Update the character stats
@@ -62,93 +68,100 @@ End Function
 
 Public Sub UpdateSelectedCellAddress(ByVal Target As Range)
     ' Display the address of the newly selected cell in cell A1
-    ThisWorkbook.Sheets("MAP").Range("A1").Value = "Selected Cell: " & Target.Address
+    ThisWorkbook.Sheets("GAME").Range("A1").value = "Selected Cell: " & Target.Address
+    ' Display the facing direction of the character in cell A2
+    ThisWorkbook.Sheets("GAME").Range("A2").value = "Facing Direction: " & facingDirection
+
+    ' Log the character's movement
+    LogMessage "Moved " & facingDirection & " to " & Target.Address
 End Sub
 
-Public Sub HighlightSelectedCell(ByVal Target As Range)
-    ' Check if the previous cell is not Nothing
-    If Not previousCell Is Nothing Then
-        ' Check if the previous cell does not contain special text
-        If Not IsSpecialText(previousCell.Value) Then
-            ' Clear the highlight from the previously selected cell
-            previousCell.Interior.ColorIndex = xlNone
-        Else
-            Select Case previousCell.Value
-                Case wallText
-                    previousCell.Interior.Color = wallColor
-                Case goldText
-                    previousCell.Interior.Color = goldColor
-                Case chestText
-                    previousCell.Interior.Color = chestColor
-                Case enemyText
-                    previousCell.Interior.Color = enemyColor
-            End Select
+Public Sub MoveChar(ByVal Target As Range)
+    ' Prevent selection of cells with specific text
+    If PreventSpecificTextSelection(Target) Then
+        ' Revert to the previous selection
+        Application.EnableEvents = False
+        If Not previousCell Is Nothing Then
+            previousCell.Select
         End If
-    End If
-    
-    ' Highlight the newly selected cell as purple
-    Target.Interior.Color = charColor
-End Sub
+        Application.EnableEvents = True
+    Else
+        SelectCellWithoutScrolling Target
 
-Public Sub HighlightSpecialTextCells()
-    Dim ws As Worksheet
-    Dim cell As Range
-    
-    ' Target the "MAP" sheet
-    Set ws = ThisWorkbook.Sheets("MAP")
-    
-    ' Loop through each cell in the used range of the "MAP" sheet
-    For Each cell In ws.UsedRange
-        ' Check if the cell contains special text
-        If IsSpecialText(cell.Value) Then
-            ' Apply the corresponding color
-            Select Case cell.Value
-                Case wallText
-                    cell.Interior.Color = wallColor
-                Case goldText
-                    cell.Interior.Color = goldColor ' Yellow color
-                Case chestText
-                    cell.Interior.Color = chestColor ' Blue color
-                Case enemyText
-                    cell.Interior.Color = enemyColor ' Red color
-            End Select
+        ' Check if the previous cell is not Nothing
+        If Not previousCell Is Nothing Then
+            ' Check if the previous cell does not contain special text
+            previousCell.value = previousCellValue
         End If
-    Next cell
-End Sub
 
-Public Sub InitializeCharacter()
-    Set myCharacter = New Character
-    
-    ' Set initial attributes
-    myCharacter.HP = 100
-    myCharacter.MP = 50
-    myCharacter.Attack = 20
-    myCharacter.Defense = 10
-    myCharacter.Gold = 0
-End Sub
+        ' Store the previous cell's value
+        previousCell = Target
+        previousCellValue = Target.value
 
-Public Sub UpdateCharacterStats()
-    ' Ensure the character is initialized
-    If myCharacter Is Nothing Then
-        InitializeCharacter
+        ' Update the character's position
+        Target.value = charText
+
+        UpdateSelectedCellAddress Target
+
+        ' Update the previous cell
+        Set previousCell = Target
     End If
+End Sub
+
+Sub SelectCellWithoutScrolling(targetCell As Range)
+    Dim currentScrollRow As Long
+    Dim currentScrollColumn As Long
     
-    ' Display character stats in the worksheet
-    With ThisWorkbook.Sheets("MAP")
-        .Range("H1").Value = "Character Stats"
-        .Range("H2").Value = "HP"
-        .Range("H3").Value = myCharacter.HP
-        .Range("I2").Value = "MP"
-        .Range("I3").Value = myCharacter.MP
-        .Range("J2").Value = "ATK"
-        .Range("J3").Value = myCharacter.Attack
-        .Range("K2").Value = "DEF"
-        .Range("K3").Value = myCharacter.Defense
-        .Range("L2").Value = "Gold"
-        .Range("L3").Value = myCharacter.Gold
-        .Range("M2").Value = "Exp"
-        .Range("M3").Value = myCharacter.Exp
-        .Range("N2").Value = "Level"
-        .Range("N3").Value = myCharacter.Level
-    End With
+    ' Store the current scroll position
+    currentScrollRow = ActiveWindow.ScrollRow
+    currentScrollColumn = ActiveWindow.ScrollColumn
+    
+    ' Disable screen updating
+    Application.ScreenUpdating = False
+    
+    ' Select the target cell
+    targetCell.Select
+    
+    ' Restore the previous scroll position
+    ActiveWindow.ScrollRow = currentScrollRow
+    ActiveWindow.ScrollColumn = currentScrollColumn
+    
+    ' Re-enable screen updating
+    Application.ScreenUpdating = True
+End Sub
+
+Sub LogMessage(message As String)
+    Dim newLogText As String
+    Dim logLines() As String
+    Dim i As Integer
+
+    ' Reference the cell where the log is stored
+    Set logRange = ThisWorkbook.Sheets("GAME").Range("N1")
+
+    ' Read the existing log messages
+    logText = logRange.Value
+
+    ' Ensure logText is a string
+    If IsEmpty(logText) Then
+        logText = ""
+    Else
+        logText = CStr(logText)
+    End If
+
+    ' Prepend the new message to the existing logText
+    newLogText = "> " & message & vbCrLf & logText
+
+    ' Split the concatenated logText into an array of lines
+    logLines = Split(newLogText, vbCrLf)
+
+    ' Keep only the most recent 10 lines
+    If UBound(logLines) > 9 Then
+        ReDim Preserve logLines(9)
+    End If
+
+    ' Join the array back into a single string
+    logText = Join(logLines, vbCrLf)
+
+    ' Write the updated log back to the cell
+    logRange.Value = logText
 End Sub
