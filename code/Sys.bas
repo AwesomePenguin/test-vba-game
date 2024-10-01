@@ -1,6 +1,8 @@
 ' Sys Module
 Public VBAEnabled As Boolean
 
+Public initialCell As Range
+Public currentCell As Range
 Public previousCell As Range
 Public previousCellValue As String
 Public facingDirection As String
@@ -19,6 +21,10 @@ Public specialTexts() As Variant
 
 ' Initialize global variables
 Sub InitializeGlobals()
+    Set initialCell = ThisWorkbook.Sheets("GAME").Range("F7")
+    Set currentCell = initialCell
+    Set previousCell = currentCell
+
     previousCellValue = ""
     facingDirection = "down"
 
@@ -35,6 +41,11 @@ Sub InitializeGlobals()
 
     ' Store all special texts in an array
     specialTexts = Array(wallText, goldText, chestText, enemyText)
+
+    ' Clear all character text from the sheet
+    ThisWorkbook.Sheets("GAME").Cells.Replace What:=charText, Replacement:="", LookAt:=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, ReplaceFormat:=False
+
+    currentCell.value = charText
 End Sub
 
 ' Function to check if a value is in the special texts array
@@ -68,7 +79,7 @@ End Function
 
 Public Sub UpdateSelectedCellAddress(ByVal Target As Range)
     ' Display the address of the newly selected cell in cell A1
-    ThisWorkbook.Sheets("GAME").Range("A1").value = "Selected Cell: " & Target.Address
+    ThisWorkbook.Sheets("GAME").Range("A1").value = "Current Position: " & Target.Address
     ' Display the facing direction of the character in cell A2
     ThisWorkbook.Sheets("GAME").Range("A2").value = "Facing Direction: " & facingDirection
 
@@ -76,9 +87,16 @@ Public Sub UpdateSelectedCellAddress(ByVal Target As Range)
     LogMessage "Moved " & facingDirection & " to " & Target.Address
 End Sub
 
-Public Sub MoveChar(ByVal Target As Range)
+Public Sub MoveChar(ByVal offsetY As Integer, ByVal offsetX As Integer)
+    ' Calculate the target cell based on the offset value
+    Dim targetCell As Range
+    Set targetCell = currentCell.Offset(offsetY, offsetX)
+
+    ' Update stats
+    Events.UpdateCharacterStats
+
     ' Prevent selection of cells with specific text
-    If PreventSpecificTextSelection(Target) Then
+    If PreventSpecificTextSelection(targetCell) Then
         ' Revert to the previous selection
         Application.EnableEvents = False
         If Not previousCell Is Nothing Then
@@ -86,25 +104,18 @@ Public Sub MoveChar(ByVal Target As Range)
         End If
         Application.EnableEvents = True
     Else
-        SelectCellWithoutScrolling Target
+        ' Restore the previous cell's value
+        previousCell.value = previousCellValue
+        
+        ' Store the next cell's value as previous cell value
+        Set previousCell = targetCell
+        previousCellValue = targetCell.value
 
-        ' Check if the previous cell is not Nothing
-        If Not previousCell Is Nothing Then
-            ' Check if the previous cell does not contain special text
-            previousCell.value = previousCellValue
-        End If
+        ' Update the next cell's value
+        targetCell.value = charText
+        Set currentCell = targetCell
 
-        ' Store the previous cell's value
-        previousCell = Target
-        previousCellValue = Target.value
-
-        ' Update the character's position
-        Target.value = charText
-
-        UpdateSelectedCellAddress Target
-
-        ' Update the previous cell
-        Set previousCell = Target
+        UpdateSelectedCellAddress currentCell
     End If
 End Sub
 

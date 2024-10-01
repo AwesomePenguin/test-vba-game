@@ -10,9 +10,6 @@ Private Sub Workbook_Open()
 
     ' Initialize global variables
     Sys.InitializeGlobals
-    
-    ' Initialize the previous cell
-    Set previousCell = ActiveCell
 
     Events.InitializeCharacter
     
@@ -21,6 +18,8 @@ Private Sub Workbook_Open()
     Application.OnKey "{LEFT}", "HandleLeftKey"
     Application.OnKey "{DOWN}", "HandleDownKey"
     Application.OnKey "{RIGHT}", "HandleRightKey"
+    Application.OnKey "{F1}", "HandleGameKey"
+    Application.OnKey "{F2}", "HandleMenuKey"
 End Sub
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
